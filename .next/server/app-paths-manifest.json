@@ -1,9 +1,0 @@
-{
-  "/api/user/profile/route": "app/api/user/profile/route.js",
-  "/_not-found/page": "app/_not-found/page.js",
-  "/login/page": "app/login/page.js",
-  "/page": "app/page.js",
-  "/signup/page": "app/signup/page.js",
-  "/patient/exercises/page": "app/patient/exercises/page.js",
-  "/patient/dashboard/page": "app/patient/dashboard/page.js"
-}
