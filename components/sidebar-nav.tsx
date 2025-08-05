@@ -67,6 +67,11 @@ export function SidebarNav({ role }: SidebarNavProps) {
       icon: Dumbbell,
     },
     {
+      title: "Find Providers",
+      href: "/patient/providers",
+      icon: Users,
+    },
+    {
       title: "Progress",
       href: "/patient/progress",
       icon: BarChart3,

@@ -12,6 +12,21 @@ CREATE TABLE public.users (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create provider_profiles table
+CREATE TABLE public.provider_profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  specialties TEXT[],
+  credentials TEXT,
+  experience_years INTEGER,
+  availability JSONB,
+  max_patients INTEGER DEFAULT 50,
+  rating DECIMAL(3,2),
+  bio TEXT,
+  location TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create patients table
 CREATE TABLE public.patients (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -167,4 +182,21 @@ INSERT INTO public.exercises (name, description, category, body_region, difficul
 ('Quad Strengthening', 'Build strength in the quadriceps muscles', 'Strength', 'Knee', 'intermediate', 'Stand with your feet shoulder-width apart. Slowly lower into a squat position, keeping your knees behind your toes. Hold for 2 seconds, then return to standing.', 3, 10),
 ('Shoulder External Rotation', 'Improve shoulder mobility and strength', 'Mobility', 'Shoulder', 'beginner', 'Hold a resistance band with your elbow bent at 90 degrees. Rotate your forearm outward against the resistance. Control the movement back to starting position.', 3, 15),
 ('Hip Abduction', 'Strengthen hip abductor muscles', 'Strength', 'Hip', 'beginner', 'Lie on your side with your legs stacked. Lift your top leg up and away from your body, keeping it straight. Lower back down with control.', 3, 12),
-('Ankle Dorsiflexion', 'Improve ankle mobility and flexibility', 'Mobility', 'Ankle', 'beginner', 'Sit with your legs extended. Point your toes toward your shin, then flex them away. Repeat this movement slowly and controlled.', 3, 20); 
+('Ankle Dorsiflexion', 'Improve ankle mobility and flexibility', 'Mobility', 'Ankle', 'beginner', 'Sit with your legs extended. Point your toes toward your shin, then flex them away. Repeat this movement slowly and controlled.', 3, 20);
+
+-- Sample provider and patient data
+INSERT INTO public.users (id, email, full_name, role) VALUES
+('00000000-0000-0000-0000-000000000001', 'drsarah@example.com', 'Dr. Sarah Johnson', 'provider'),
+('00000000-0000-0000-0000-000000000002', 'john@example.com', 'John Smith', 'patient');
+
+INSERT INTO public.provider_profiles (user_id, specialties, credentials, experience_years, availability, max_patients, rating, bio, location) VALUES
+('00000000-0000-0000-0000-000000000001', ARRAY['Orthopedic'], 'PT, DPT', 10, '{}'::jsonb, 50, 4.9, 'Orthopedic specialist with 10 years of experience.', 'New York');
+
+INSERT INTO public.patients (user_id, provider_id, diagnosis, program_name, start_date, status) VALUES
+('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', 'Knee injury', 'Knee Rehab', NOW(), 'active');
+
+INSERT INTO public.exercise_sessions (patient_id, exercise_id, form_score, pain_level) VALUES
+((SELECT id FROM public.patients LIMIT 1), (SELECT id FROM public.exercises LIMIT 1), 80, 3);
+
+INSERT INTO public.progress (patient_id, metric_name, current_value, target_value, unit) VALUES
+((SELECT id FROM public.patients LIMIT 1), 'Strength', 50, 100, 'reps');
