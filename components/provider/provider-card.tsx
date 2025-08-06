@@ -6,9 +6,10 @@ import { ProviderProfile } from "@/lib/supabase"
 
 interface ProviderCardProps {
   provider: ProviderProfile
+  onConnect?: (provider: ProviderProfile) => void
 }
 
-export function ProviderCard({ provider }: ProviderCardProps) {
+export function ProviderCard({ provider, onConnect }: ProviderCardProps) {
   const user = (provider as any).users
   const initials = user?.full_name
     ? user.full_name
@@ -44,7 +45,14 @@ export function ProviderCard({ provider }: ProviderCardProps) {
         {provider.rating && (
           <p className="text-sm text-muted-foreground">Rating: {provider.rating}</p>
         )}
-        <Button className="w-full" size="sm">View Profile</Button>
+        {onConnect ? (
+          <Button className="w-full" size="sm" onClick={() => onConnect(provider)}>
+            Connect
+          </Button>
+        ) : (
+          <Button className="w-full" size="sm">View Profile</Button>
+        )}
+
       </CardContent>
     </Card>
   )

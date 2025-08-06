@@ -63,6 +63,18 @@ export interface Progress {
   recorded_at: string
 }
 
+export interface PatientExercise {
+  id: string
+  patient_id: string
+  exercise_id: string
+  assigned_by: string
+  assigned_at: string
+  is_active: boolean
+  sets: number
+  reps: number
+}
+
+
 export interface ProviderProfile {
   id: string
   user_id: string
@@ -76,4 +88,13 @@ export interface ProviderProfile {
   location: string | null
   created_at: string
   users?: User
+}
+
+export interface Message {
+  id: string
+  sender_id: string
+  receiver_id: string
+  content: string
+  created_at: string
+
 }

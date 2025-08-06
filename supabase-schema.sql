@@ -1,3 +1,4 @@
+
 -- Drop tables if they already exist (in reverse dependency order)
 DROP TABLE IF EXISTS public.exercise_sessions CASCADE;
 DROP TABLE IF EXISTS public.patient_exercises CASCADE;
@@ -7,8 +8,6 @@ DROP TABLE IF EXISTS public.patients CASCADE;
 DROP TABLE IF EXISTS public.provider_profiles CASCADE;
 DROP TABLE IF EXISTS public.users CASCADE;
 
--- Enable Row Level Security setting (optional, depends on Supabase config)
--- USERS table (extends Supabase auth.users)
 CREATE TABLE public.users (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
@@ -18,8 +17,7 @@ CREATE TABLE public.users (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
--- PROVIDER PROFILES
+=
 CREATE TABLE public.provider_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -34,7 +32,6 @@ CREATE TABLE public.provider_profiles (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- PATIENTS
 CREATE TABLE public.patients (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
@@ -97,10 +94,21 @@ CREATE TABLE public.patient_exercises (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   patient_id UUID REFERENCES public.patients(id) ON DELETE CASCADE NOT NULL,
   exercise_id UUID REFERENCES public.exercises(id) ON DELETE CASCADE NOT NULL,
+  sets INTEGER NOT NULL,
+  reps INTEGER NOT NULL,
   assigned_by UUID REFERENCES public.users(id) NOT NULL,
   assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   is_active BOOLEAN DEFAULT true,
   UNIQUE(patient_id, exercise_id)
+);
+
+-- Create messages table
+CREATE TABLE public.messages (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  sender_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+  receiver_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Enable Row Level Security
@@ -110,6 +118,7 @@ ALTER TABLE public.exercises ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.exercise_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.patient_exercises ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 
 -- RLS POLICIES
 
@@ -173,13 +182,24 @@ CREATE POLICY "Providers can manage patient exercises" ON public.patient_exercis
     auth.uid() = (SELECT provider_id FROM public.patients WHERE id = patient_id)
   );
 
--- INDEXES
+-- RLS Policies for messages
+CREATE POLICY "Users can view their messages" ON public.messages
+  FOR SELECT USING (
+    auth.uid() = sender_id OR auth.uid() = receiver_id
+  );
+
+CREATE POLICY "Users can send messages" ON public.messages
+  FOR INSERT WITH CHECK (auth.uid() = sender_id);
+
+-- Create i
 CREATE INDEX idx_patients_provider_id ON public.patients(provider_id);
 CREATE INDEX idx_patients_user_id ON public.patients(user_id);
 CREATE INDEX idx_exercise_sessions_patient_id ON public.exercise_sessions(patient_id);
 CREATE INDEX idx_exercise_sessions_exercise_id ON public.exercise_sessions(exercise_id);
 CREATE INDEX idx_progress_patient_id ON public.progress(patient_id);
 CREATE INDEX idx_patient_exercises_patient_id ON public.patient_exercises(patient_id);
+CREATE INDEX idx_messages_sender_id ON public.messages(sender_id);
+CREATE INDEX idx_messages_receiver_id ON public.messages(receiver_id);
 
 -- SAMPLE DATA
 
@@ -205,20 +225,23 @@ INSERT INTO public.exercises (name, description, category, body_region, difficul
 ('Hip Abduction', 'Strengthen hip abductor muscles', 'Strength', 'Hip', 'beginner', 'Lie on your side with your legs stacked. Lift your top leg up and away from your body, keeping it straight. Lower back down with control.', 3, 12),
 ('Ankle Dorsiflexion', 'Improve ankle mobility and flexibility', 'Mobility', 'Ankle', 'beginner', 'Sit with your legs extended. Point your toes toward your shin, then flex them away. Repeat this movement slowly and controlled.', 3, 20);
 
--- One exercise session
-INSERT INTO public.exercise_sessions (patient_id, exercise_id, form_score, pain_level)
-VALUES (
-  (SELECT id FROM public.patients LIMIT 1),
-  (SELECT id FROM public.exercises LIMIT 1),
-  80, 3
-);
+-- Sample provider and patient data
+INSERT INTO public.users (id, email, full_name, role) VALUES
+('00000000-0000-0000-0000-000000000001', 'drsarah@example.com', 'Dr. Sarah Johnson', 'provider'),
+('00000000-0000-0000-0000-000000000002', 'john@example.com', 'John Smith', 'patient');
 
--- Sample progress tracking
-INSERT INTO public.progress (patient_id, metric_name, current_value, target_value, unit)
-VALUES (
-  (SELECT id FROM public.patients LIMIT 1),
-  'Strength',
-  50,
-  100,
-  'reps'
-);
+INSERT INTO public.provider_profiles (user_id, specialties, credentials, experience_years, availability, max_patients, rating, bio, location) VALUES
+('00000000-0000-0000-0000-000000000001', ARRAY['Orthopedic'], 'PT, DPT', 10, '{}'::jsonb, 50, 4.9, 'Orthopedic specialist with 10 years of experience.', 'New York');
+
+INSERT INTO public.patients (user_id, provider_id, diagnosis, program_name, start_date, status) VALUES
+('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', 'Knee injury', 'Knee Rehab', NOW(), 'active');
+
+INSERT INTO public.exercise_sessions (patient_id, exercise_id, form_score, pain_level) VALUES
+((SELECT id FROM public.patients LIMIT 1), (SELECT id FROM public.exercises LIMIT 1), 80, 3);
+
+INSERT INTO public.progress (patient_id, metric_name, current_value, target_value, unit) VALUES
+((SELECT id FROM public.patients LIMIT 1), 'Strength', 50, 100, 'reps');
+
+INSERT INTO public.patient_exercises (patient_id, exercise_id, sets, reps, assigned_by) VALUES
+((SELECT id FROM public.patients LIMIT 1), (SELECT id FROM public.exercises LIMIT 1), 3, 12, '00000000-0000-0000-0000-000000000001');
+

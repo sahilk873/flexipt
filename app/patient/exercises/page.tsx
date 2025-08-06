@@ -51,7 +51,8 @@ export default function PatientExercisesPage() {
       const { data: assignedExercises, error: assignedError } = await supabase
         .from('patient_exercises')
         .select(`
-          exercise_id,
+          sets,
+          reps,
           exercises (
             id,
             name,
@@ -75,7 +76,12 @@ export default function PatientExercisesPage() {
       }
 
       // Extract exercises from the joined data
-      const exerciseList = assignedExercises?.map(item => item.exercises).filter(Boolean) || []
+      const exerciseList =
+        (assignedExercises?.map((item: any) => ({
+          ...(item.exercises || {}),
+          sets: item.sets ?? item.exercises?.sets,
+          reps: item.reps ?? item.exercises?.reps,
+        })) || []) as Exercise[]
       setExercises(exerciseList)
     } catch (error) {
       console.error('Error fetching exercises:', error)

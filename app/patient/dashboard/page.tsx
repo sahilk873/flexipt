@@ -62,10 +62,12 @@ export default function PatientDashboard() {
         ? Math.round(recentSessions.reduce((sum, session) => sum + (session.form_score || 0), 0) / recentSessions.length)
         : 0
 
-      // Fetch assigned exercises
+      // Fetch assigned exercises with custom sets/reps
       const { data: assignedExercises } = await supabase
         .from('patient_exercises')
         .select(`
+          sets,
+          reps,
           exercises (
             id,
             name,
@@ -78,7 +80,12 @@ export default function PatientDashboard() {
         .eq('is_active', true)
         .limit(3)
 
-      const exercises = (assignedExercises?.map(item => item.exercises).filter(Boolean) || []) as unknown as Exercise[]
+      const exercises =
+        (assignedExercises?.map((item: any) => ({
+          ...(item.exercises || {}),
+          sets: item.sets ?? item.exercises?.sets,
+          reps: item.reps ?? item.exercises?.reps,
+        })) || []) as Exercise[]
 
       // Fetch progress data
       const { data: progressData } = await supabase
