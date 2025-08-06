@@ -52,6 +52,7 @@ export function ProviderCard({ provider, onConnect }: ProviderCardProps) {
         ) : (
           <Button className="w-full" size="sm">View Profile</Button>
         )}
+
       </CardContent>
     </Card>
   )

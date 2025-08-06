@@ -22,6 +22,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { supabase } from "@/lib/supabase"
 import { AssignExerciseDialog } from "@/components/provider/assign-exercise-dialog"
 
+
 interface PatientRow {
   id: string
   program_name: string
@@ -42,6 +43,7 @@ interface PatientWithStats extends PatientRow {
 export default function ProviderDashboard() {
   const { user } = useAuth()
   const [patients, setPatients] = useState<PatientWithStats[]>([])
+
   const [stats, setStats] = useState({
     totalPatients: 0,
     completedSessions: 0,
@@ -93,6 +95,8 @@ export default function ProviderDashboard() {
 
     setPatients(patientsWithStats)
 
+    
+
     const patientIds = patientList.map((p) => p.id)
 
     const { count: sessionCount } = await supabase
@@ -104,6 +108,7 @@ export default function ProviderDashboard() {
           ? patientIds
           : ["00000000-0000-0000-0000-000000000000"]
       )
+
 
     const { count: exerciseCount } = await supabase
       .from("exercises")
@@ -148,6 +153,7 @@ export default function ProviderDashboard() {
             <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
+
             <div className="text-2xl font-bold">{stats.completedSessions}</div>
           </CardContent>
         </Card>
@@ -213,6 +219,7 @@ export default function ProviderDashboard() {
                 <p className="text-xs text-muted-foreground">
                   Completed {patient.completedSessions} / {patient.totalAssignments}
                 </p>
+
               </div>
             ))}
             {patients.length === 0 && (

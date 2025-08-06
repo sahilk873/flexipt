@@ -74,6 +74,7 @@ export interface PatientExercise {
   reps: number
 }
 
+
 export interface ProviderProfile {
   id: string
   user_id: string
@@ -95,4 +96,5 @@ export interface Message {
   receiver_id: string
   content: string
   created_at: string
+
 }

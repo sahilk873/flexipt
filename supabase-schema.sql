@@ -1,4 +1,13 @@
--- Create users table (extends Supabase auth.users)
+
+-- Drop tables if they already exist (in reverse dependency order)
+DROP TABLE IF EXISTS public.exercise_sessions CASCADE;
+DROP TABLE IF EXISTS public.patient_exercises CASCADE;
+DROP TABLE IF EXISTS public.progress CASCADE;
+DROP TABLE IF EXISTS public.exercises CASCADE;
+DROP TABLE IF EXISTS public.patients CASCADE;
+DROP TABLE IF EXISTS public.provider_profiles CASCADE;
+DROP TABLE IF EXISTS public.users CASCADE;
+
 CREATE TABLE public.users (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
@@ -8,8 +17,7 @@ CREATE TABLE public.users (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
--- Create provider_profiles table
+=
 CREATE TABLE public.provider_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -24,7 +32,6 @@ CREATE TABLE public.provider_profiles (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create patients table
 CREATE TABLE public.patients (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
@@ -38,7 +45,7 @@ CREATE TABLE public.patients (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create exercises table
+-- EXERCISES
 CREATE TABLE public.exercises (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
@@ -51,13 +58,13 @@ CREATE TABLE public.exercises (
   instructions TEXT NOT NULL,
   sets INTEGER NOT NULL,
   reps INTEGER NOT NULL,
-  duration INTEGER, -- in seconds
+  duration INTEGER,
   created_by UUID REFERENCES public.users(id),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create exercise_sessions table
+-- EXERCISE SESSIONS
 CREATE TABLE public.exercise_sessions (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   patient_id UUID REFERENCES public.patients(id) ON DELETE CASCADE NOT NULL,
@@ -70,7 +77,7 @@ CREATE TABLE public.exercise_sessions (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create progress table
+-- PROGRESS TRACKING
 CREATE TABLE public.progress (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   patient_id UUID REFERENCES public.patients(id) ON DELETE CASCADE NOT NULL,
@@ -82,7 +89,7 @@ CREATE TABLE public.progress (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create patient_exercises table (assigns exercises to patients)
+-- PATIENT EXERCISE ASSIGNMENTS
 CREATE TABLE public.patient_exercises (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   patient_id UUID REFERENCES public.patients(id) ON DELETE CASCADE NOT NULL,
@@ -113,24 +120,23 @@ ALTER TABLE public.progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.patient_exercises ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for users
+-- RLS POLICIES
+
+-- USERS
 CREATE POLICY "Users can view their own profile" ON public.users
   FOR SELECT USING (auth.uid() = id);
 
 CREATE POLICY "Users can update their own profile" ON public.users
   FOR UPDATE USING (auth.uid() = id);
 
--- RLS Policies for patients
+-- PATIENTS
 CREATE POLICY "Providers can view their patients" ON public.patients
-  FOR SELECT USING (
-    auth.uid() = provider_id OR 
-    auth.uid() = user_id
-  );
+  FOR SELECT USING (auth.uid() = provider_id OR auth.uid() = user_id);
 
 CREATE POLICY "Providers can manage their patients" ON public.patients
   FOR ALL USING (auth.uid() = provider_id);
 
--- RLS Policies for exercises
+-- EXERCISES
 CREATE POLICY "Everyone can view exercises" ON public.exercises
   FOR SELECT USING (true);
 
@@ -140,7 +146,7 @@ CREATE POLICY "Providers can manage exercises" ON public.exercises
     (SELECT role FROM public.users WHERE id = auth.uid()) = 'provider'
   );
 
--- RLS Policies for exercise_sessions
+-- EXERCISE SESSIONS
 CREATE POLICY "Users can view their own sessions" ON public.exercise_sessions
   FOR SELECT USING (
     auth.uid() = (SELECT user_id FROM public.patients WHERE id = patient_id) OR
@@ -152,7 +158,7 @@ CREATE POLICY "Patients can create their own sessions" ON public.exercise_sessio
     auth.uid() = (SELECT user_id FROM public.patients WHERE id = patient_id)
   );
 
--- RLS Policies for progress
+-- PROGRESS
 CREATE POLICY "Users can view their own progress" ON public.progress
   FOR SELECT USING (
     auth.uid() = (SELECT user_id FROM public.patients WHERE id = patient_id) OR
@@ -164,7 +170,7 @@ CREATE POLICY "Providers can manage progress" ON public.progress
     auth.uid() = (SELECT provider_id FROM public.patients WHERE id = patient_id)
   );
 
--- RLS Policies for patient_exercises
+-- PATIENT EXERCISES
 CREATE POLICY "Users can view their assigned exercises" ON public.patient_exercises
   FOR SELECT USING (
     auth.uid() = (SELECT user_id FROM public.patients WHERE id = patient_id) OR
@@ -185,7 +191,7 @@ CREATE POLICY "Users can view their messages" ON public.messages
 CREATE POLICY "Users can send messages" ON public.messages
   FOR INSERT WITH CHECK (auth.uid() = sender_id);
 
--- Create indexes for better performance
+-- Create i
 CREATE INDEX idx_patients_provider_id ON public.patients(provider_id);
 CREATE INDEX idx_patients_user_id ON public.patients(user_id);
 CREATE INDEX idx_exercise_sessions_patient_id ON public.exercise_sessions(patient_id);
@@ -195,7 +201,22 @@ CREATE INDEX idx_patient_exercises_patient_id ON public.patient_exercises(patien
 CREATE INDEX idx_messages_sender_id ON public.messages(sender_id);
 CREATE INDEX idx_messages_receiver_id ON public.messages(receiver_id);
 
--- Insert sample data
+-- SAMPLE DATA
+
+-- Users
+INSERT INTO public.users (id, email, full_name, role) VALUES
+('00000000-0000-0000-0000-000000000001', 'drsarah@example.com', 'Dr. Sarah Johnson', 'provider'),
+('00000000-0000-0000-0000-000000000002', 'john@example.com', 'John Smith', 'patient');
+
+-- Provider Profile
+INSERT INTO public.provider_profiles (user_id, specialties, credentials, experience_years, availability, max_patients, rating, bio, location) VALUES
+('00000000-0000-0000-0000-000000000001', ARRAY['Orthopedic'], 'PT, DPT', 10, '{}'::jsonb, 50, 4.9, 'Orthopedic specialist with 10 years of experience.', 'New York');
+
+-- Patients
+INSERT INTO public.patients (user_id, provider_id, diagnosis, program_name, start_date, status) VALUES
+('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', 'Knee injury', 'Knee Rehab', NOW(), 'active');
+
+-- Exercises
 INSERT INTO public.exercises (name, description, category, body_region, difficulty, instructions, sets, reps) VALUES
 ('Knee Extension', 'Strengthen quadriceps and improve knee stability', 'Strength', 'Knee', 'beginner', 'Sit on a chair with your back straight. Slowly extend your knee until your leg is straight, then slowly lower it back down. Keep your movements controlled.', 3, 12),
 ('Hamstring Stretch', 'Improve hamstring flexibility and range of motion', 'Mobility', 'Knee', 'beginner', 'Sit on the floor with one leg extended and the other bent. Lean forward from your hips until you feel a stretch in your hamstring. Hold for 30 seconds.', 2, 30),
@@ -223,3 +244,4 @@ INSERT INTO public.progress (patient_id, metric_name, current_value, target_valu
 
 INSERT INTO public.patient_exercises (patient_id, exercise_id, sets, reps, assigned_by) VALUES
 ((SELECT id FROM public.patients LIMIT 1), (SELECT id FROM public.exercises LIMIT 1), 3, 12, '00000000-0000-0000-0000-000000000001');
+

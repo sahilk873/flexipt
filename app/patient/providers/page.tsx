@@ -6,10 +6,12 @@ import { ProviderCard } from "@/components/provider/provider-card"
 import { ProviderProfile, supabase } from "@/lib/supabase"
 import { useAuth } from "@/hooks/use-auth"
 
+
 export default function ProviderSearchPage() {
   const [providers, setProviders] = useState<ProviderProfile[]>([])
   const [search, setSearch] = useState("")
   const { user } = useAuth()
+
 
   useEffect(() => {
     const fetchProviders = async () => {
@@ -70,9 +72,9 @@ export default function ProviderSearchPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filtered.map((provider) => (
           <ProviderCard key={provider.id} provider={provider} onConnect={handleConnect} />
+
         ))}
       </div>
     </div>
   )
 }
-
