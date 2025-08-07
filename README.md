@@ -64,12 +64,25 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 This will create:
 - Users table (extends Supabase auth)
 - Patients table
+- Patient invitations table
 - Exercises table
 - Exercise sessions table
 - Progress tracking table
 - Patient exercises assignment table
 - Row Level Security policies
 - Sample exercise data
+
+4. (Optional) If you want to enable patient invitations, also run:
+
+```sql
+-- Copy and paste the contents of scripts/setup-patient-invitations.sql
+```
+
+5. (Required) Fix the users table INSERT policy:
+
+```sql
+-- Copy and paste the contents of scripts/fix-users-insert-policy.sql
+```
 
 ### 5. Run the Development Server
 

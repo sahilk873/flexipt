@@ -46,6 +46,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { useToast } from "@/hooks/use-toast"
+import { supabase } from "@/lib/supabase"
 
 // Mock data for patients
 const patientsData = [
@@ -172,27 +173,69 @@ export default function PatientsPage() {
   const statuses = Array.from(new Set(patients.map((p) => p.status)))
   const programs = Array.from(new Set(patients.map((p) => p.program)))
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    // Add new patient to the list
-    const newPatient = {
-      id: patients.length + 1,
-      name: values.name,
-      email: values.email,
-      program: values.program,
-      progress: 0,
-      lastSession: "Never",
-      status: "New",
-      avatar: "",
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      // Get the current session token
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session?.access_token) {
+        toast({
+          title: "Authentication error",
+          description: "Please log in again to add patients.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Call the API to create patient and send invitation
+      const response = await fetch('/api/patients/invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          name: values.name,
+          email: values.email,
+          phone: values.phone,
+          program: values.program,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to invite patient')
+      }
+
+      // Add new patient to the list with the real data
+      const newPatient = {
+        id: result.invitationId || `temp-${Date.now()}`, // Use invitationId or generate temp ID
+        name: values.name,
+        email: values.email,
+        program: values.program,
+        progress: 0,
+        lastSession: "Never",
+        status: "New",
+        avatar: "",
+      }
+      
+      setPatients([...patients, newPatient])
+      setIsAddDialogOpen(false)
+      form.reset()
+      
+      toast({
+        title: "Patient invitation created",
+        description: `${values.name} has been invited. Please send them this signup link: ${result.signupUrl}`,
+      })
+    } catch (error) {
+      console.error('Error inviting patient:', error)
+      toast({
+        title: "Failed to invite patient",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive",
+      })
     }
-    
-    setPatients([...patients, newPatient])
-    setIsAddDialogOpen(false)
-    form.reset()
-    
-    toast({
-      title: "Patient added",
-      description: `${values.name} has been added to your patient list.`,
-    })
   }
 
   return (
@@ -200,6 +243,44 @@ export default function PatientsPage() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Patients</h1>
         <div className="flex items-center gap-4">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={async () => {
+              try {
+                const { data: { session } } = await supabase.auth.getSession()
+                if (!session?.access_token) {
+                  toast({
+                    title: "No session",
+                    description: "Please log in first",
+                    variant: "destructive",
+                  })
+                  return
+                }
+
+                const response = await fetch('/api/user/debug', {
+                  headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                  },
+                })
+                const result = await response.json()
+                console.log('Debug result:', result)
+                toast({
+                  title: "Debug info logged",
+                  description: "Check console for user profile details",
+                })
+              } catch (error) {
+                console.error('Debug error:', error)
+                toast({
+                  title: "Debug failed",
+                  description: "Check console for error",
+                  variant: "destructive",
+                })
+              }
+            }}
+          >
+            Debug User
+          </Button>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2">
@@ -405,8 +486,8 @@ export default function PatientsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredPatients.map((patient) => (
-              <TableRow key={patient.id}>
+            {filteredPatients.map((patient, index) => (
+              <TableRow key={patient.id || `patient-${index}`}>
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Avatar>

@@ -114,6 +114,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log('User profile created successfully:', profileData)
+
+      // Create role-specific profile
+      if (role === 'provider') {
+        console.log('Creating provider profile...')
+        const { data: providerProfile, error: providerError } = await supabase
+          .from('provider_profiles')
+          .insert({
+            user_id: data.user.id,
+            specialties: [],
+            credentials: '',
+            experience_years: 0,
+            availability: {},
+            max_patients: 50,
+            rating: 0,
+            bio: '',
+            location: ''
+          })
+          .select()
+          .single()
+
+        if (providerError) {
+          console.error('Error creating provider profile:', providerError)
+          return { error: providerError }
+        }
+
+        console.log('Provider profile created successfully:', providerProfile)
+      } else if (role === 'patient') {
+        console.log('Patient signup successful - patient profile will be created when they connect to a provider')
+        // For patients, we don't create a patient record during signup
+        // The patient record will be created when they connect to a provider
+        // This avoids the provider_id requirement issue
+      }
+
       return { error: null }
     } catch (error) {
       console.error('Unexpected error during signup:', error)

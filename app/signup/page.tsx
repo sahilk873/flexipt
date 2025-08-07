@@ -43,12 +43,14 @@ function SignupForm() {
   const [isLoading, setIsLoading] = useState(false)
   
   const defaultRole = searchParams.get("role") as "provider" | "patient" | null || "patient"
+  const invitationId = searchParams.get("invitation")
+  const invitationEmail = searchParams.get("email")
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      email: "",
+      email: invitationEmail || "",
       password: "",
       role: defaultRole,
     },
@@ -67,10 +69,46 @@ function SignupForm() {
           variant: "destructive",
         })
       } else {
-        toast({
-          title: "Account created",
-          description: "Please check your email to verify your account.",
-        })
+        // If this is a patient signup with an invitation, link them to the provider
+        if (values.role === 'patient' && invitationId) {
+          try {
+            const response = await fetch('/api/patients/accept-invitation', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                invitationId,
+                patientEmail: values.email,
+                patientName: values.name,
+              }),
+            })
+
+            if (response.ok) {
+              toast({
+                title: "Account created",
+                description: "You've been successfully linked to your provider!",
+              })
+            } else {
+              console.warn('Failed to link patient to provider, but account was created')
+              toast({
+                title: "Account created",
+                description: "Please check your email to verify your account.",
+              })
+            }
+          } catch (error) {
+            console.error('Error linking patient to provider:', error)
+            toast({
+              title: "Account created",
+              description: "Please check your email to verify your account.",
+            })
+          }
+        } else {
+          toast({
+            title: "Account created",
+            description: "Please check your email to verify your account.",
+          })
+        }
         
         // Redirect to login page
         router.push('/login')
@@ -95,9 +133,15 @@ function SignupForm() {
               <Activity className="h-10 w-10 text-primary" />
             </div>
             <h1 className="text-3xl font-bold">Create an account</h1>
-            <p className="text-muted-foreground">
-              Enter your information to get started
-            </p>
+            {invitationId ? (
+              <p className="text-muted-foreground">
+                You've been invited by your healthcare provider. Create your account to get started.
+              </p>
+            ) : (
+              <p className="text-muted-foreground">
+                Enter your information to get started
+              </p>
+            )}
           </div>
           
           <Form {...form}>

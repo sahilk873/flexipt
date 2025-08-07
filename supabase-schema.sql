@@ -45,6 +45,19 @@ CREATE TABLE public.patients (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- PATIENT INVITATIONS
+CREATE TABLE public.patient_invitations (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  provider_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+  patient_name TEXT NOT NULL,
+  patient_email TEXT NOT NULL,
+  patient_phone TEXT,
+  program_name TEXT NOT NULL,
+  status TEXT CHECK (status IN ('pending', 'accepted', 'expired')) DEFAULT 'pending',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- EXERCISES
 CREATE TABLE public.exercises (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -123,6 +136,9 @@ ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 -- RLS POLICIES
 
 -- USERS
+CREATE POLICY "Users can insert their own profile" ON public.users
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
 CREATE POLICY "Users can view their own profile" ON public.users
   FOR SELECT USING (auth.uid() = id);
 
@@ -190,6 +206,19 @@ CREATE POLICY "Users can view their messages" ON public.messages
 
 CREATE POLICY "Users can send messages" ON public.messages
   FOR INSERT WITH CHECK (auth.uid() = sender_id);
+
+-- PATIENT INVITATIONS POLICIES
+CREATE POLICY "Providers can create invitations" ON public.patient_invitations
+  FOR INSERT WITH CHECK (auth.uid() = provider_id);
+
+CREATE POLICY "Providers can view their invitations" ON public.patient_invitations
+  FOR SELECT USING (auth.uid() = provider_id);
+
+CREATE POLICY "Providers can update their invitations" ON public.patient_invitations
+  FOR UPDATE USING (auth.uid() = provider_id);
+
+-- Enable RLS on patient_invitations table
+ALTER TABLE public.patient_invitations ENABLE ROW LEVEL SECURITY;
 
 -- Create i
 CREATE INDEX idx_patients_provider_id ON public.patients(provider_id);

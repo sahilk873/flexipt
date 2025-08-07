@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
+import { supabase } from "@/lib/supabase"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -31,6 +32,7 @@ export default function LoginPage() {
   const { toast } = useToast()
   const { signIn, user } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
+  const [isRedirecting, setIsRedirecting] = useState(false)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -39,6 +41,51 @@ export default function LoginPage() {
       password: "",
     },
   })
+
+  // Handle redirect after successful login
+  useEffect(() => {
+    if (user && isRedirecting) {
+      handleUserRedirect()
+    }
+  }, [user, isRedirecting])
+
+  const handleUserRedirect = async () => {
+    try {
+      console.log(' User authenticated, fetching role...')
+      
+      // Get user role from database directly
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user?.id)
+        .single()
+
+      if (error) {
+        console.error('❌ Error fetching user role:', error)
+        toast({
+          title: "Login issue",
+          description: "Could not determine your role. Please contact support.",
+          variant: "destructive",
+        })
+        setIsRedirecting(false)
+        return
+      }
+
+      const role = userData?.role || 'patient'
+      console.log('✅ User role detected:', role)
+      
+      // Redirect to appropriate dashboard
+      router.push(`/${role}/dashboard`)
+    } catch (error) {
+      console.error('❌ Error in user redirect:', error)
+      toast({
+        title: "Login issue",
+        description: "Could not redirect to dashboard. Please try again.",
+        variant: "destructive",
+      })
+      setIsRedirecting(false)
+    }
+  }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
@@ -58,13 +105,8 @@ export default function LoginPage() {
           description: "Redirecting to dashboard...",
         })
         
-        // Redirect based on user role
-        if (user) {
-          // Get user role from database
-          const { data: userData } = await fetch('/api/user/profile').then(res => res.json())
-          const role = userData?.role || 'patient'
-          router.push(`/${role}/dashboard`)
-        }
+        // Set flag to trigger redirect when user state updates
+        setIsRedirecting(true)
       }
     } catch (error) {
       toast({

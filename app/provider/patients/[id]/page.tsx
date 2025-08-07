@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, BarChart3, Calendar, ChevronRight, Dumbbell, Edit, FileText, MessageSquare, MoreHorizontal, Plus, User } from 'lucide-react'
 import { Button } from "@/components/ui/button"
@@ -25,12 +25,15 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-export default function PatientProfilePage({ params }: { params: { id: string } }) {
+export default function PatientProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const [activeTab, setActiveTab] = useState("overview")
+  
+  // Unwrap params using React.use()
+  const resolvedParams = React.use(params)
   
   // Mock patient data
   const patient = {
-    id: parseInt(params.id),
+    id: parseInt(resolvedParams.id),
     name: "Michael Smith",
     email: "michael.smith@example.com",
     phone: "(555) 123-4567",
